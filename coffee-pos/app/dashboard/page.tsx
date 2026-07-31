@@ -13,6 +13,8 @@ import {
   Users,
   LogOut,
   UserCheck,
+  Menu,
+  X,
 } from "lucide-react";
 
 import { OverviewTab } from "./components/OverviewTab";
@@ -33,6 +35,7 @@ export default function DashboardPage() {
   const [user, setUser] = useState<UserSession | null>(null);
   const [activeTab, setActiveTab] = useState<string>("overview");
   const [isMounted, setIsMounted] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const {
     products = [],
@@ -67,12 +70,16 @@ export default function DashboardPage() {
       return;
     }
 
-    const parsedUser: UserSession = JSON.parse(session);
-    setUser(parsedUser);
+    try {
+      const parsedUser: UserSession = JSON.parse(session);
+      setUser(parsedUser);
 
-    if (parsedUser.role === "admin") setActiveTab("overview");
-    else if (parsedUser.role === "kasir") setActiveTab("pos");
-    else if (parsedUser.role === "gudang") setActiveTab("inventory");
+      if (parsedUser.role === "admin") setActiveTab("overview");
+      else if (parsedUser.role === "kasir") setActiveTab("pos");
+      else if (parsedUser.role === "gudang") setActiveTab("inventory");
+    } catch (e) {
+      router.push("/login");
+    }
   }, [router]);
 
   if (!isMounted || !user) return null;
@@ -89,7 +96,6 @@ export default function DashboardPage() {
 
   const totalCart = cart.reduce((acc, curr) => acc + curr.price * curr.qty, 0);
 
-  // HANDLE CHECKOUT TERBARU: DENGAN DUKUNGAN MEMAKAI VOUCHER & DISKON
   const handleCheckout = (usedVoucher?: string, discountAmount: number = 0) => {
     if (cart.length === 0) return;
     addTransaction(cart, paymentMethod, selectedCustomerId, usedVoucher, discountAmount);
@@ -149,11 +155,37 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-stone-950 text-stone-200 flex font-sans">
-      {/* SIDEBAR */}
-      <aside className="w-64 bg-stone-900/90 border-r border-stone-800/80 flex flex-col justify-between shrink-0 p-4">
-        <div>
-          <div className="flex items-center gap-3 px-3 py-4 mb-6 border-b border-stone-800">
+    <div className="min-h-screen bg-stone-950 text-stone-200 flex flex-col md:flex-row font-sans">
+      {/* HEADER MOBILE (Muncul hanya di layar HP) */}
+      <div className="md:hidden bg-stone-900 border-b border-stone-800 p-4 flex justify-between items-center sticky top-0 z-50">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 bg-amber-600/20 border border-amber-500/30 rounded-lg flex items-center justify-center">
+            <Coffee className="w-4 h-4 text-amber-500" />
+          </div>
+          <div>
+            <h2 className="font-bold text-sm text-stone-100 leading-none">
+              NEXA<span className="text-amber-500">COFFEE</span>
+            </h2>
+            <p className="text-[9px] text-stone-400 font-mono">POS SYSTEM</p>
+          </div>
+        </div>
+        <button
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="p-2 bg-stone-800 text-stone-300 rounded-xl border border-stone-700/80 active:scale-95 transition-transform"
+        >
+          {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </button>
+      </div>
+
+      {/* SIDEBAR (Desktop & Overlay Menu HP) */}
+      <aside
+        className={`${
+          isMobileMenuOpen ? "flex" : "hidden"
+        } md:flex w-full md:w-64 bg-stone-900/95 border-r border-stone-800/80 flex-col justify-between shrink-0 p-4 fixed md:sticky top-14 md:top-0 left-0 bottom-0 z-40 overflow-y-auto`}
+      >
+        <div className="space-y-6">
+          {/* BRAND LOGO (Hanya Desktop) */}
+          <div className="hidden md:flex items-center gap-3 px-3 py-4 border-b border-stone-800">
             <div className="w-10 h-10 bg-amber-600/20 border border-amber-500/30 rounded-xl flex items-center justify-center">
               <Coffee className="w-5 h-5 text-amber-500" />
             </div>
@@ -167,108 +199,131 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="px-3 py-2.5 mb-6 bg-stone-950/60 border border-stone-800 rounded-xl flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-stone-200">{user.name}</p>
+          {/* USER INFO BADGE */}
+          <div className="px-3 py-2.5 bg-stone-950/60 border border-stone-800 rounded-xl flex items-center justify-between">
+            <div className="truncate">
+              <p className="text-xs font-semibold text-stone-200 truncate">{user.name}</p>
               <p className="text-[10px] text-amber-400 font-mono capitalize">Role: {user.role}</p>
             </div>
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
           </div>
 
-          <nav className="space-y-1">
+          {/* NAV LINKS */}
+          <nav className="space-y-1.5">
             {user.role === "admin" && (
               <button
-                onClick={() => setActiveTab("overview")}
+                onClick={() => {
+                  setActiveTab("overview");
+                  setIsMobileMenuOpen(false);
+                }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
                   activeTab === "overview"
-                    ? "bg-amber-600 text-stone-950 font-semibold shadow-lg shadow-amber-600/20"
+                    ? "bg-amber-600 text-stone-950 font-bold shadow-lg shadow-amber-600/20"
                     : "text-stone-400 hover:bg-stone-800/60 hover:text-stone-200"
                 }`}
               >
-                <LayoutDashboard className="w-4 h-4" /> Ringkasan Bisnis
+                <LayoutDashboard className="w-4 h-4 shrink-0" /> Ringkasan Bisnis
               </button>
             )}
 
             {(user.role === "admin" || user.role === "kasir") && (
               <button
-                onClick={() => setActiveTab("pos")}
+                onClick={() => {
+                  setActiveTab("pos");
+                  setIsMobileMenuOpen(false);
+                }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
                   activeTab === "pos"
-                    ? "bg-amber-600 text-stone-950 font-semibold shadow-lg shadow-amber-600/20"
+                    ? "bg-amber-600 text-stone-950 font-bold shadow-lg shadow-amber-600/20"
                     : "text-stone-400 hover:bg-stone-800/60 hover:text-stone-200"
                 }`}
               >
-                <ShoppingCart className="w-4 h-4" /> Kasir & Transaksi
+                <ShoppingCart className="w-4 h-4 shrink-0" /> Kasir & Transaksi
               </button>
             )}
 
             {(user.role === "admin" || user.role === "gudang") && (
               <button
-                onClick={() => setActiveTab("inventory")}
+                onClick={() => {
+                  setActiveTab("inventory");
+                  setIsMobileMenuOpen(false);
+                }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
                   activeTab === "inventory"
-                    ? "bg-amber-600 text-stone-950 font-semibold shadow-lg shadow-amber-600/20"
+                    ? "bg-amber-600 text-stone-950 font-bold shadow-lg shadow-amber-600/20"
                     : "text-stone-400 hover:bg-stone-800/60 hover:text-stone-200"
                 }`}
               >
-                <Boxes className="w-4 h-4" /> Stok & Bahan Baku
+                <Boxes className="w-4 h-4 shrink-0" /> Stok & Bahan Baku
               </button>
             )}
 
             {user.role === "admin" && (
               <>
                 <button
-                  onClick={() => setActiveTab("reports")}
+                  onClick={() => {
+                    setActiveTab("reports");
+                    setIsMobileMenuOpen(false);
+                  }}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
                     activeTab === "reports"
-                      ? "bg-amber-600 text-stone-950 font-semibold shadow-lg shadow-amber-600/20"
+                      ? "bg-amber-600 text-stone-950 font-bold shadow-lg shadow-amber-600/20"
                       : "text-stone-400 hover:bg-stone-800/60 hover:text-stone-200"
                   }`}
                 >
-                  <BarChart3 className="w-4 h-4" /> Laporan Keuangan
+                  <BarChart3 className="w-4 h-4 shrink-0" /> Laporan Keuangan
                 </button>
 
                 <button
-                  onClick={() => setActiveTab("users")}
+                  onClick={() => {
+                    setActiveTab("users");
+                    setIsMobileMenuOpen(false);
+                  }}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
                     activeTab === "users"
-                      ? "bg-amber-600 text-stone-950 font-semibold shadow-lg shadow-amber-600/20"
+                      ? "bg-amber-600 text-stone-950 font-bold shadow-lg shadow-amber-600/20"
                       : "text-stone-400 hover:bg-stone-800/60 hover:text-stone-200"
                   }`}
                 >
-                  <Users className="w-4 h-4" /> Kelola Pengguna
+                  <Users className="w-4 h-4 shrink-0" /> Kelola Pengguna
                 </button>
               </>
             )}
 
             {(user.role === "admin" || user.role === "kasir") && (
               <button
-                onClick={() => setActiveTab("customers")}
+                onClick={() => {
+                  setActiveTab("customers");
+                  setIsMobileMenuOpen(false);
+                }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
                   activeTab === "customers"
-                    ? "bg-amber-600 text-stone-950 font-semibold shadow-lg shadow-amber-600/20"
+                    ? "bg-amber-600 text-stone-950 font-bold shadow-lg shadow-amber-600/20"
                     : "text-stone-400 hover:bg-stone-800/60 hover:text-stone-200"
                 }`}
               >
-                <UserCheck className="w-4 h-4" /> Kelola Pelanggan
+                <UserCheck className="w-4 h-4 shrink-0" /> Kelola Pelanggan
               </button>
             )}
           </nav>
         </div>
 
-        <button
-          onClick={() => {
-            localStorage.removeItem("user_session");
-            router.push("/login");
-          }}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium text-red-400 hover:bg-red-950/40 border border-transparent hover:border-red-900/50 transition-all"
-        >
-          <LogOut className="w-4 h-4" /> Keluar Sistem
-        </button>
+        {/* LOGOUT BUTTON */}
+        <div className="pt-4 border-t border-stone-800/80 mt-auto">
+          <button
+            onClick={() => {
+              localStorage.removeItem("user_session");
+              router.push("/login");
+            }}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium text-red-400 hover:bg-red-950/40 border border-transparent hover:border-red-900/50 transition-all"
+          >
+            <LogOut className="w-4 h-4 shrink-0" /> Keluar Sistem
+          </button>
+        </div>
       </aside>
 
-      {/* MAIN CONTENT COMPONENT */}
-      <main className="flex-1 bg-stone-950 p-8 overflow-y-auto">
+      {/* MAIN CONTENT AREA */}
+      <main className="flex-1 bg-stone-950 p-4 sm:p-6 md:p-8 overflow-x-hidden min-w-0">
         {activeTab === "overview" && user.role === "admin" && (
           <OverviewTab
             getTotalIncome={getTotalIncome}
